@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0",
     "@plae/shared": "workspace:*",
     "hono": "4.6.3",
     "jose": "5.9.6"

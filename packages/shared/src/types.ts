@@ -36,3 +36,13 @@ export type UsageLogResponse = {
   mode: UsageMode;
   quota: QuotaSnapshot;
 };
+
+export type GenerateStrudelRequest = {
+  prompt: string;       // student's natural-language description, 1..500 chars
+};
+
+export type GenerateStrudelResponse = {
+  code: string;         // Strudel DSL
+  explanation: string;  // Korean explanation for the student
+  quota: QuotaSnapshot; // remaining quota after this call
+};
