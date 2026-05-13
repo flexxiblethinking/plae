@@ -1,0 +1,23 @@
+name = "plae-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-25"
+compatibility_flags = ["nodejs_compat"]
+
+# Local dev server
+[dev]
+port = 8787
+
+# Secrets (set via `wrangler secret put <KEY>`):
+#   ANTHROPIC_API_KEY
+#   HF_TOKEN
+#   GOOGLE_OAUTH_CLIENT_ID
+#
+# Non-secret config (can live here or in vars):
+[vars]
+ALLOWED_EMAIL_DOMAIN = ""
+DAILY_QUOTA_PER_STUDENT = "30"
+
+# KV namespaces — uncomment and fill IDs after `wrangler kv namespace create`:
+# [[kv_namespaces]]
+# binding = "USAGE_KV"
+# id = ""
