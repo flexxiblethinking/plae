@@ -23,3 +23,16 @@ export type MeResponse = {
   emailDomain: string;  // lowercased domain portion
   role: UserRole;
 };
+
+export type UsageMode = "strudel" | "musicgen";
+
+export type QuotaSnapshot = {
+  limit: number;        // 0 means disabled (no calls allowed)
+  used: number;         // count BEFORE this request
+  resetAt: number;      // unix ms — next KST midnight
+};
+
+export type UsageLogResponse = {
+  mode: UsageMode;
+  quota: QuotaSnapshot;
+};

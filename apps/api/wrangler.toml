@@ -15,7 +15,8 @@ port = 8787
 
 [vars]
 ALLOWED_EMAIL_DOMAIN = ""
-DAILY_QUOTA_PER_STUDENT = "30"
+STRUDEL_DAILY_QUOTA = "30"
+MUSICGEN_DAILY_QUOTA = "10"
 
 # D1 database. For local dev, miniflare creates a SQLite file under
 # `.wrangler/state/v3/d1/`. For production, run:

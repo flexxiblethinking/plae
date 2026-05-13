@@ -3,7 +3,8 @@ import type { D1Database } from "@cloudflare/workers-types";
 export type Bindings = {
   DB: D1Database;
   ALLOWED_EMAIL_DOMAIN: string;
-  DAILY_QUOTA_PER_STUDENT: string;
+  STRUDEL_DAILY_QUOTA: string;
+  MUSICGEN_DAILY_QUOTA: string;
   // Secrets (server-only):
   GOOGLE_OAUTH_CLIENT_ID?: string;
   ANTHROPIC_API_KEY?: string;
