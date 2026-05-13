@@ -15,3 +15,11 @@ export type HealthCheck = {
   service: "plae-api";
   timestamp: string;
 };
+
+export type UserRole = "student" | "teacher";
+
+export type MeResponse = {
+  userId: string;       // sha256(lowercased email)
+  emailDomain: string;  // lowercased domain portion
+  role: UserRole;
+};

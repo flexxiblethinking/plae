@@ -38,7 +38,7 @@
 | 인증 | Google OAuth 2.0 | 학교 구글 계정 |
 | LLM (하네스) | Anthropic Claude Haiku | 자연어 → Strudel/MusicGen 프롬프트 변환 |
 | 음악 생성 모델 | MusicGen (HF Inference Endpoint) | medium 모델 우선 검토 |
-| 데이터 저장 | Cloudflare KV / Workers KV | 사용량 카운터, 작품 메타데이터 |
+| 데이터 저장 | Cloudflare D1 (SQLite) | 사용자, 사용량 로그, 작품 메타데이터. 관계형·원자성 필요 |
 | 작품 오디오 저장 | Cloudflare R2 (옵션) | MusicGen 결과물 보관 시 |
 | 모니터링 | 간단한 로그 + 강사용 대시보드 | 학급별 사용량 확인 |
 
@@ -63,7 +63,7 @@
 [Backend Proxy (Cloudflare Workers)]
    │  ┌─────────────────────────────┐
    │  │ - 인증 검증                  │
-   │  │ - 사용량 카운터 (KV)         │
+   │  │ - 사용량 카운터 (D1)         │
    │  │ - 입력 안전 필터             │
    │  │ - LLM/모델 라우팅             │
    │  └─────────────────────────────┘
@@ -86,7 +86,7 @@
 - [ ] Cloudflare Workers 프로젝트 셋업
 - [ ] Google OAuth 통합 (학교 도메인 화이트리스트 가능 시 적용)
 - [ ] Anthropic API 프록시 엔드포인트 (`POST /api/generate/strudel`)
-- [ ] KV 기반 학생별 사용량 카운터
+- [ ] D1 기반 사용자/사용량 테이블 (학생별 일일 카운터)
 - [ ] 기본 React 프론트엔드 + 로그인 흐름
 
 ### Phase 2 — Strudel 통합 (객관 모드)

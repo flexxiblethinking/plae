@@ -1,16 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import type { ApiResponse, HealthCheck } from "@plae/shared";
-
-type Bindings = {
-  ALLOWED_EMAIL_DOMAIN: string;
-  DAILY_QUOTA_PER_STUDENT: string;
-  // Secrets (injected by Wrangler; not present in dev unless .dev.vars set):
-  ANTHROPIC_API_KEY?: string;
-  HF_ENDPOINT_URL?: string;
-  HF_TOKEN?: string;
-  GOOGLE_OAUTH_CLIENT_ID?: string;
-};
+import type { ApiResponse, HealthCheck, MeResponse } from "@plae/shared";
+import type { Bindings } from "./bindings";
+import { requireAuth } from "./middleware/auth";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -23,6 +15,19 @@ app.get("/api/health", (c) => {
       status: "ok",
       service: "plae-api",
       timestamp: new Date().toISOString(),
+    },
+  };
+  return c.json(body);
+});
+
+app.get("/api/me", requireAuth(), (c) => {
+  const user = c.get("user");
+  const body: ApiResponse<MeResponse> = {
+    ok: true,
+    data: {
+      userId: user.userId,
+      emailDomain: user.emailDomain,
+      role: user.role,
     },
   };
   return c.json(body);

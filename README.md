@@ -19,6 +19,26 @@
 pnpm install
 ```
 
+## 로컬 D1 데이터베이스 셋업
+
+처음 한 번만 실행 (스키마 적용):
+
+```bash
+pnpm --filter @plae/api exec wrangler d1 migrations apply plae-db --local
+```
+
+로컬 SQLite 파일은 `apps/api/.wrangler/state/v3/d1/` 아래에 만들어진다.
+프로덕션 배포 시에는 먼저 `wrangler d1 create plae-db`로 원격 DB를 만들고,
+반환된 UUID를 `apps/api/wrangler.toml`의 `database_id` 필드에 채워 넣은 뒤
+`--remote` 플래그로 마이그레이션을 적용한다.
+
+테이블 직접 확인:
+
+```bash
+pnpm --filter @plae/api exec wrangler d1 execute plae-db --local \
+  --command "SELECT name FROM sqlite_master WHERE type='table'"
+```
+
 ## 개발 서버 실행
 
 루트에서 양쪽 동시 실행:
@@ -29,7 +49,8 @@ pnpm dev
 
 - 프론트엔드 (Vite): http://localhost:5173
 - 백엔드 (Workers): http://localhost:8787
-- 헬스체크: http://localhost:8787/api/health
+- 헬스체크: http://localhost:8787/api/health (인증 불필요)
+- 내 정보: http://localhost:8787/api/me (Google ID 토큰 필요)
 
 개별 실행:
 

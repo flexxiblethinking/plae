@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@plae/shared": "workspace:*",
-    "hono": "4.6.3"
+    "hono": "4.6.3",
+    "jose": "5.9.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "4.20241004.0",
