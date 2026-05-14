@@ -1,11 +1,21 @@
 import { useEffect, useState } from "react";
-import type { GenerateStrudelResponse } from "@plae/shared";
+import type {
+  GenerateMusicgenResponse,
+  GenerateStrudelResponse,
+} from "@plae/shared";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
 import { initStrudelOnce } from "../lib/strudel";
 import { StrudelPlayer } from "./StrudelPlayer";
+import { AudioPlayer } from "./AudioPlayer";
 
 const PROMPT_MAX = 500;
+
+type Mode = "strudel" | "musicgen";
+
+type Result =
+  | { mode: "strudel"; data: GenerateStrudelResponse }
+  | { mode: "musicgen"; data: GenerateMusicgenResponse };
 
 // API + client error codes mapped to friendly Korean copy for 7th-graders.
 function errorMessage(code: string): string {
@@ -13,7 +23,7 @@ function errorMessage(code: string): string {
     case "quota_exceeded":
       return "오늘 만들 수 있는 횟수를 다 썼어요. 내일 다시 만들 수 있어요.";
     case "unsafe_output":
-      return "안전하지 않은 코드가 만들어져서 멈췄어요. 다른 표현으로 다시 해볼까요?";
+      return "안전하지 않은 결과가 만들어져서 멈췄어요. 다른 표현으로 다시 해볼까요?";
     case "invalid_input":
       return "입력을 확인해 주세요. (1~500자 사이로 적어요)";
     case "network_error":
@@ -24,11 +34,22 @@ function errorMessage(code: string): string {
   }
 }
 
+const MODE_LABEL: Record<Mode, string> = {
+  strudel: "객관 모드",
+  musicgen: "감성 모드",
+};
+
+const MODE_PLACEHOLDER: Record<Mode, string> = {
+  strudel: "예: 느린 피아노 멜로디, 신나는 드럼 비트",
+  musicgen: "예: 비 오는 날 카페에서 듣고 싶은 잔잔한 음악",
+};
+
 export function ComposeScreen() {
   const { state } = useAuth();
+  const [mode, setMode] = useState<Mode>("strudel");
   const [prompt, setPrompt] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<GenerateStrudelResponse | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Warm up Strudel early so its audio-unlock listener is registered before
@@ -44,21 +65,56 @@ export function ComposeScreen() {
   const canSubmit =
     trimmed.length > 0 && trimmed.length <= PROMPT_MAX && !submitting;
 
+  const handleModeChange = (next: Mode) => {
+    if (next === mode) return;
+    setMode(next);
+    setResult(null);
+    setErrorMsg(null);
+  };
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     setErrorMsg(null);
-    const res = await api.generateStrudel(idToken, { prompt: trimmed });
-    if (res.ok) {
-      setResult(res.data);
+
+    if (mode === "strudel") {
+      const res = await api.generateStrudel(idToken, { prompt: trimmed });
+      if (res.ok) setResult({ mode: "strudel", data: res.data });
+      else setErrorMsg(errorMessage(res.error.code));
     } else {
-      setErrorMsg(errorMessage(res.error.code));
+      const res = await api.generateMusicgen(idToken, { prompt: trimmed });
+      if (res.ok) setResult({ mode: "musicgen", data: res.data });
+      else setErrorMsg(errorMessage(res.error.code));
     }
+
     setSubmitting(false);
   };
 
+  const submitLabel = submitting
+    ? mode === "musicgen"
+      ? "음악을 만드는 중이에요… (조금 걸려요)"
+      : "만드는 중…"
+    : "음악 만들기";
+
   return (
     <div className="space-y-6">
+      <div className="flex gap-2">
+        {(["strudel", "musicgen"] as Mode[]).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => handleModeChange(m)}
+            className={
+              m === mode
+                ? "rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white"
+                : "rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            }
+          >
+            {MODE_LABEL[m]}
+          </button>
+        ))}
+      </div>
+
       <div>
         <label
           htmlFor="prompt"
@@ -72,7 +128,7 @@ export function ComposeScreen() {
           onChange={(e) => setPrompt(e.target.value)}
           maxLength={PROMPT_MAX}
           rows={3}
-          placeholder="예: 느린 피아노 멜로디, 신나는 드럼 비트"
+          placeholder={MODE_PLACEHOLDER[mode]}
           className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-base focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
         <div className="mt-1 flex items-center justify-between">
@@ -85,7 +141,7 @@ export function ComposeScreen() {
             disabled={!canSubmit}
             className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
           >
-            {submitting ? "만드는 중…" : "음악 만들기"}
+            {submitLabel}
           </button>
         </div>
       </div>
@@ -96,12 +152,29 @@ export function ComposeScreen() {
         </div>
       )}
 
-      {result && (
+      {result?.mode === "strudel" && (
         <div className="space-y-3">
-          <p className="text-slate-700">{result.explanation}</p>
-          <StrudelPlayer code={result.code} />
+          <p className="text-slate-700">{result.data.explanation}</p>
+          <StrudelPlayer code={result.data.code} />
           <p className="text-xs text-slate-400">
-            오늘 {result.quota.used}/{result.quota.limit}회 사용했어요.
+            오늘 {result.data.quota.used}/{result.data.quota.limit}회 사용했어요.
+          </p>
+        </div>
+      )}
+
+      {result?.mode === "musicgen" && (
+        <div className="space-y-3">
+          <p className="text-slate-700">{result.data.explanation}</p>
+          <AudioPlayer
+            audioBase64={result.data.audioBase64}
+            mimeType={result.data.mimeType}
+          />
+          <p className="text-xs text-slate-400">
+            AI 프롬프트:{" "}
+            <span className="font-mono">{result.data.refinedPrompt}</span>
+          </p>
+          <p className="text-xs text-slate-400">
+            오늘 {result.data.quota.used}/{result.data.quota.limit}회 사용했어요.
           </p>
         </div>
       )}

@@ -2,17 +2,23 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type {
   ApiResponse,
+  GenerateMusicgenRequest,
+  GenerateMusicgenResponse,
   GenerateStrudelRequest,
   GenerateStrudelResponse,
   HealthCheck,
   MeResponse,
-  UsageLogResponse,
 } from "@plae/shared";
 import type { Bindings } from "./bindings";
 import { requireAuth } from "./middleware/auth";
 import { requireQuota } from "./middleware/quota";
 import { recordUsage } from "./services/usage";
-import { generateStrudel, HarnessError } from "./services/anthropic";
+import {
+  generateStrudel,
+  HarnessError,
+  refineMusicgenPrompt,
+} from "./services/anthropic";
+import { generateMusicgenAudio } from "./services/musicgen";
 
 const PROMPT_MIN = 1;
 const PROMPT_MAX = 500;
@@ -143,31 +149,120 @@ app.post(
   },
 );
 
-// Phase 3 placeholder — MusicGen wiring lands with Phase 3.
 app.post(
-  "/api/_test/log/musicgen",
+  "/api/generate/musicgen",
   requireAuth(),
   requireQuota("musicgen"),
   async (c) => {
     const user = c.get("user");
     const quota = c.get("quota");
-    await recordUsage(c.env.DB, {
-      userId: user.userId,
-      mode: "musicgen",
-      status: "ok",
-    });
-    const body: ApiResponse<UsageLogResponse> = {
-      ok: true,
-      data: {
-        mode: "musicgen",
-        quota: {
-          limit: quota.limit,
-          used: quota.used,
-          resetAt: quota.resetAt,
+
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      const err: ApiResponse<never> = {
+        ok: false,
+        error: { code: "invalid_input", message: "request body must be JSON" },
+      };
+      return c.json(err, 400);
+    }
+
+    const prompt = (body as Partial<GenerateMusicgenRequest>)?.prompt;
+    if (
+      typeof prompt !== "string" ||
+      prompt.length < PROMPT_MIN ||
+      prompt.length > PROMPT_MAX
+    ) {
+      const err: ApiResponse<never> = {
+        ok: false,
+        error: {
+          code: "invalid_input",
+          message: `prompt must be a string between ${PROMPT_MIN} and ${PROMPT_MAX} chars`,
         },
-      },
-    };
-    return c.json(body);
+      };
+      return c.json(err, 400);
+    }
+
+    if (!c.env.ANTHROPIC_API_KEY) {
+      const err: ApiResponse<never> = {
+        ok: false,
+        error: {
+          code: "server_misconfigured",
+          message: "ANTHROPIC_API_KEY is not set",
+        },
+      };
+      return c.json(err, 500);
+    }
+
+    if (!c.env.HF_ENDPOINT_URL || !c.env.HF_TOKEN) {
+      const err: ApiResponse<never> = {
+        ok: false,
+        error: {
+          code: "server_misconfigured",
+          message: "HF_ENDPOINT_URL or HF_TOKEN is not set",
+        },
+      };
+      return c.json(err, 500);
+    }
+
+    const startedAt = Date.now();
+    try {
+      const refinement = await refineMusicgenPrompt({
+        apiKey: c.env.ANTHROPIC_API_KEY,
+        prompt,
+      });
+      const audio = await generateMusicgenAudio({
+        endpointUrl: c.env.HF_ENDPOINT_URL,
+        token: c.env.HF_TOKEN,
+        prompt: refinement.prompt,
+      });
+
+      await recordUsage(c.env.DB, {
+        userId: user.userId,
+        mode: "musicgen",
+        status: "ok",
+        durationMs: Date.now() - startedAt,
+      });
+
+      const ok: ApiResponse<GenerateMusicgenResponse> = {
+        ok: true,
+        data: {
+          audioBase64: audio.audioBase64,
+          mimeType: audio.mimeType,
+          refinedPrompt: refinement.prompt,
+          explanation: refinement.explanation,
+          quota: {
+            limit: quota.limit,
+            used: quota.used + 1,
+            resetAt: quota.resetAt,
+          },
+        },
+      };
+      return c.json(ok);
+    } catch (e) {
+      await recordUsage(c.env.DB, {
+        userId: user.userId,
+        mode: "musicgen",
+        status: "error",
+        durationMs: Date.now() - startedAt,
+      });
+
+      if (e instanceof HarnessError) {
+        const err: ApiResponse<never> = {
+          ok: false,
+          error: { code: e.code, message: e.message },
+        };
+        return c.json(err, 502);
+      }
+
+      console.error(e);
+      const err: ApiResponse<never> = {
+        ok: false,
+        error: { code: "internal_error", message: "unexpected harness failure" },
+      };
+      return c.json(err, 500);
+    }
   },
 );
 

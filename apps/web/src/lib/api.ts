@@ -1,5 +1,7 @@
 import type {
   ApiResponse,
+  GenerateMusicgenRequest,
+  GenerateMusicgenResponse,
   GenerateStrudelRequest,
   GenerateStrudelResponse,
   MeResponse,
@@ -45,6 +47,12 @@ export const api = {
   generateStrudel: (idToken: string, req: GenerateStrudelRequest) =>
     call<GenerateStrudelResponse>(
       "/api/generate/strudel",
+      { method: "POST", body: JSON.stringify(req) },
+      idToken,
+    ),
+  generateMusicgen: (idToken: string, req: GenerateMusicgenRequest) =>
+    call<GenerateMusicgenResponse>(
+      "/api/generate/musicgen",
       { method: "POST", body: JSON.stringify(req) },
       idToken,
     ),

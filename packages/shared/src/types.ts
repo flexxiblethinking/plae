@@ -46,3 +46,15 @@ export type GenerateStrudelResponse = {
   explanation: string;  // Korean explanation for the student
   quota: QuotaSnapshot; // remaining quota after this call
 };
+
+export type GenerateMusicgenRequest = {
+  prompt: string;       // student's natural-language mood description, 1..500 chars
+};
+
+export type GenerateMusicgenResponse = {
+  audioBase64: string;   // base64-encoded audio clip from MusicGen
+  mimeType: string;      // audio MIME type, e.g. "audio/wav" or "audio/flac"
+  refinedPrompt: string; // English prompt the harness sent to MusicGen
+  explanation: string;   // Korean explanation for the student
+  quota: QuotaSnapshot;  // remaining quota after this call
+};
