@@ -1,4 +1,5 @@
 import { useAuth } from "../lib/auth";
+import { ComposeScreen } from "./ComposeScreen";
 
 export function HomeScreen() {
   const { state, signOut } = useAuth();
@@ -22,14 +23,8 @@ export function HomeScreen() {
         </div>
       </header>
 
-      <main className="px-6 py-12 max-w-2xl mx-auto">
-        <h2 className="text-2xl font-bold tracking-tight">로그인 성공</h2>
-        <p className="mt-4 text-slate-600">
-          다음 단계에서 음악 생성 UI(Strudel REPL + 입력창)를 만들 예정이에요.
-        </p>
-        <p className="mt-6 text-xs text-slate-400 font-mono break-all">
-          user_id: {state.user.userId.slice(0, 16)}…
-        </p>
+      <main className="px-6 py-10 max-w-2xl mx-auto">
+        <ComposeScreen />
       </main>
     </div>
   );
