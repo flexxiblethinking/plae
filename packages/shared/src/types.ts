@@ -58,3 +58,25 @@ export type GenerateMusicgenResponse = {
   explanation: string;   // Korean explanation for the student
   quota: QuotaSnapshot;  // remaining quota after this call
 };
+
+// ---- Teacher dashboard ----
+
+export type UsageCounts = {
+  total: number;
+  strudel: number;
+  musicgen: number;
+  ok: number;
+  error: number;
+  blocked: number;
+};
+
+export type RecentIssue = {
+  mode: UsageMode;
+  status: "error" | "blocked";
+  createdAt: number; // unix ms
+};
+
+export type TeacherStatsResponse = {
+  today: UsageCounts;          // counts since KST midnight
+  recentIssues: RecentIssue[]; // last error/blocked entries, newest first
+};

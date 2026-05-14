@@ -5,6 +5,7 @@ import type {
   GenerateStrudelRequest,
   GenerateStrudelResponse,
   MeResponse,
+  TeacherStatsResponse,
 } from "@plae/shared";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
@@ -54,6 +55,12 @@ export const api = {
     call<GenerateMusicgenResponse>(
       "/api/generate/musicgen",
       { method: "POST", body: JSON.stringify(req) },
+      idToken,
+    ),
+  teacherStats: (idToken: string) =>
+    call<TeacherStatsResponse>(
+      "/api/teacher/stats",
+      { method: "GET" },
       idToken,
     ),
 };

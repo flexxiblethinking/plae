@@ -10,4 +10,5 @@ export type Bindings = {
   ANTHROPIC_API_KEY?: string;
   HF_ENDPOINT_URL?: string;
   HF_TOKEN?: string;
+  TEACHER_EMAILS?: string; // comma-separated emails promoted to the teacher role
 };

@@ -88,7 +88,42 @@ export const requireAuth = (): MiddlewareHandler<{ Bindings: Bindings }> => {
     const userId = await sha256Hex(normalized);
     const row = await upsertUser(c.env.DB, { userId, emailDomain: domain });
 
-    c.set("user", { userId: row.user_id, emailDomain: row.email_domain, role: row.role });
+    // The teacher role is derived from the TEACHER_EMAILS env var, not the DB
+    // — for a one-time deployment that avoids a migration / admin tooling.
+    const teacherEmails = (c.env.TEACHER_EMAILS ?? "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const role: UserRole = teacherEmails.includes(normalized)
+      ? "teacher"
+      : "student";
+
+    c.set("user", { userId: row.user_id, emailDomain: row.email_domain, role });
+    await next();
+  };
+};
+
+// Gate for teacher-only routes. Must run after requireAuth().
+export const requireTeacher = (): MiddlewareHandler<{ Bindings: Bindings }> => {
+  return async (c, next) => {
+    const user = c.get("user");
+    if (!user) {
+      const body: ApiResponse<never> = {
+        ok: false,
+        error: {
+          code: "server_misconfigured",
+          message: "requireTeacher used before requireAuth",
+        },
+      };
+      return c.json(body, 500);
+    }
+    if (user.role !== "teacher") {
+      const body: ApiResponse<never> = {
+        ok: false,
+        error: { code: "forbidden", message: "teacher role required" },
+      };
+      return c.json(body, 403);
+    }
     await next();
   };
 };

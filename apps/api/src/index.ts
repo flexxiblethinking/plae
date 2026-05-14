@@ -8,9 +8,10 @@ import type {
   GenerateStrudelResponse,
   HealthCheck,
   MeResponse,
+  TeacherStatsResponse,
 } from "@plae/shared";
 import type { Bindings } from "./bindings";
-import { requireAuth } from "./middleware/auth";
+import { requireAuth, requireTeacher } from "./middleware/auth";
 import { requireQuota } from "./middleware/quota";
 import { recordUsage } from "./services/usage";
 import {
@@ -19,6 +20,9 @@ import {
   refineMusicgenPrompt,
 } from "./services/anthropic";
 import { generateMusicgenAudio } from "./services/musicgen";
+import { getTeacherStats } from "./services/stats";
+import { checkInput } from "./lib/input-filter";
+import { kstDayStartMs } from "./lib/time";
 
 const PROMPT_MIN = 1;
 const PROMPT_MAX = 500;
@@ -81,6 +85,26 @@ app.post(
         },
       };
       return c.json(err, 400);
+    }
+
+    const strudelFilter = checkInput(prompt);
+    if (!strudelFilter.safe) {
+      console.warn(
+        `[input-filter] blocked strudel input (matched: ${strudelFilter.matched})`,
+      );
+      await recordUsage(c.env.DB, {
+        userId: user.userId,
+        mode: "strudel",
+        status: "blocked",
+      });
+      const err: ApiResponse<never> = {
+        ok: false,
+        error: {
+          code: "blocked_input",
+          message: "입력에 사용할 수 없는 표현이 포함되어 있어요.",
+        },
+      };
+      return c.json(err, 422);
     }
 
     if (!c.env.ANTHROPIC_API_KEY) {
@@ -184,6 +208,26 @@ app.post(
       return c.json(err, 400);
     }
 
+    const musicgenFilter = checkInput(prompt);
+    if (!musicgenFilter.safe) {
+      console.warn(
+        `[input-filter] blocked musicgen input (matched: ${musicgenFilter.matched})`,
+      );
+      await recordUsage(c.env.DB, {
+        userId: user.userId,
+        mode: "musicgen",
+        status: "blocked",
+      });
+      const err: ApiResponse<never> = {
+        ok: false,
+        error: {
+          code: "blocked_input",
+          message: "입력에 사용할 수 없는 표현이 포함되어 있어요.",
+        },
+      };
+      return c.json(err, 422);
+    }
+
     if (!c.env.ANTHROPIC_API_KEY) {
       const err: ApiResponse<never> = {
         ok: false,
@@ -265,6 +309,12 @@ app.post(
     }
   },
 );
+
+app.get("/api/teacher/stats", requireAuth(), requireTeacher(), async (c) => {
+  const stats = await getTeacherStats(c.env.DB, kstDayStartMs());
+  const body: ApiResponse<TeacherStatsResponse> = { ok: true, data: stats };
+  return c.json(body);
+});
 
 app.notFound((c) => {
   const body: ApiResponse<never> = {
