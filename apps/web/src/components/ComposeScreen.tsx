@@ -3,15 +3,17 @@ import type { GenerateMusicgenResponse } from "@plae/shared";
 import { useAuth } from "../lib/auth";
 import { api, errorMessage } from "../lib/api";
 import { StrudelComposer } from "./StrudelComposer";
+import { DrumPad } from "./DrumPad";
 import { AudioPlayer } from "./AudioPlayer";
 
 const PROMPT_MAX = 500;
 
-type Mode = "strudel" | "musicgen";
+type Mode = "strudel" | "musicgen" | "drumpad";
 
 const MODE_LABEL: Record<Mode, string> = {
   strudel: "객관 모드",
   musicgen: "감성 모드",
+  drumpad: "드럼 패드",
 };
 
 export function ComposeScreen() {
@@ -43,7 +45,7 @@ export function ComposeScreen() {
   return (
     <div className="space-y-6">
       <div className="flex gap-2">
-        {(["strudel", "musicgen"] as Mode[]).map((m) => (
+        {(["strudel", "musicgen", "drumpad"] as Mode[]).map((m) => (
           <button
             key={m}
             type="button"
@@ -60,10 +62,13 @@ export function ComposeScreen() {
       </div>
 
       {/* 객관 모드 — StrudelComposer는 항상 마운트해 레이어 상태를 보존하고,
-          감성 모드일 때만 숨긴다. */}
+          다른 모드일 때만 숨긴다. */}
       <div className={mode === "strudel" ? "" : "hidden"}>
         <StrudelComposer />
       </div>
+
+      {/* 드럼 패드 — 오디오 시퀀서가 있어 숨김 대신 조건부 렌더(언마운트 시 정지). */}
+      {mode === "drumpad" && <DrumPad />}
 
       <div className={mode === "musicgen" ? "space-y-6" : "hidden"}>
         <div>
