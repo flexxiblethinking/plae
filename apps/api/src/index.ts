@@ -26,6 +26,12 @@ import { kstDayStartMs } from "./lib/time";
 
 const PROMPT_MIN = 1;
 const PROMPT_MAX = 500;
+const STRUDEL_LAYER_TYPES: readonly string[] = [
+  "drum",
+  "bass",
+  "chord",
+  "melody",
+];
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -75,19 +81,41 @@ app.post(
       return c.json(err, 400);
     }
 
-    const prompt = (body as Partial<GenerateStrudelRequest>)?.prompt;
-    if (typeof prompt !== "string" || prompt.length < PROMPT_MIN || prompt.length > PROMPT_MAX) {
+    const req = body as Partial<GenerateStrudelRequest>;
+    const layerType = req?.layerType;
+    const description = req?.description;
+    const bpm = typeof req?.bpm === "number" ? req.bpm : undefined;
+    const existingLayers = Array.isArray(req?.existingLayers)
+      ? req.existingLayers
+      : [];
+
+    if (!layerType || !STRUDEL_LAYER_TYPES.includes(layerType)) {
       const err: ApiResponse<never> = {
         ok: false,
         error: {
           code: "invalid_input",
-          message: `prompt must be a string between ${PROMPT_MIN} and ${PROMPT_MAX} chars`,
+          message: `layerType must be one of ${STRUDEL_LAYER_TYPES.join(", ")}`,
         },
       };
       return c.json(err, 400);
     }
 
-    const strudelFilter = checkInput(prompt);
+    if (
+      typeof description !== "string" ||
+      description.length < PROMPT_MIN ||
+      description.length > PROMPT_MAX
+    ) {
+      const err: ApiResponse<never> = {
+        ok: false,
+        error: {
+          code: "invalid_input",
+          message: `description must be a string between ${PROMPT_MIN} and ${PROMPT_MAX} chars`,
+        },
+      };
+      return c.json(err, 400);
+    }
+
+    const strudelFilter = checkInput(description);
     if (!strudelFilter.safe) {
       console.warn(
         `[input-filter] blocked strudel input (matched: ${strudelFilter.matched})`,
@@ -122,7 +150,10 @@ app.post(
     try {
       const result = await generateStrudel({
         apiKey: c.env.ANTHROPIC_API_KEY,
-        prompt,
+        layerType,
+        description,
+        bpm,
+        existingLayers,
       });
 
       await recordUsage(c.env.DB, {
@@ -137,6 +168,7 @@ app.post(
         data: {
           code: result.code,
           explanation: result.explanation,
+          bpm: result.bpm,
           quota: {
             limit: quota.limit,
             used: quota.used + 1,

@@ -37,13 +37,25 @@ export type UsageLogResponse = {
   quota: QuotaSnapshot;
 };
 
+// Layered Strudel composition: the student stacks one typed layer at a time.
+export type LayerType = "drum" | "bass" | "chord" | "melody";
+
+export type StrudelLayer = {
+  type: LayerType;
+  code: string;         // a single Strudel pattern line (no setcpm / $: prefix)
+};
+
 export type GenerateStrudelRequest = {
-  prompt: string;       // student's natural-language description, 1..500 chars
+  layerType: LayerType;
+  description: string;        // student's natural-language description, 1..500 chars
+  bpm?: number;               // composition tempo; omitted on the first layer
+  existingLayers: StrudelLayer[]; // layers already in the composition, for coherence
 };
 
 export type GenerateStrudelResponse = {
-  code: string;         // Strudel DSL
+  code: string;         // the new layer's Strudel pattern line
   explanation: string;  // Korean explanation for the student
+  bpm: number;          // effective composition tempo (decided on the first layer)
   quota: QuotaSnapshot; // remaining quota after this call
 };
 

@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { LayerType, StrudelLayer } from "@plae/shared";
 import {
   STRUDEL_OUTPUT_SCHEMA,
   STRUDEL_SYSTEM_PROMPT,
@@ -11,10 +12,14 @@ import {
 
 const MODEL = "claude-haiku-4-5";
 const MAX_TOKENS = 1024;
+const DEFAULT_BPM = 90;
+const BPM_MIN = 60;
+const BPM_MAX = 140;
 
 export type StrudelGeneration = {
   code: string;
   explanation: string;
+  bpm: number;
 };
 
 export class HarnessError extends Error {
@@ -27,11 +32,36 @@ export class HarnessError extends Error {
   }
 }
 
+// Builds the structured user turn. The student's free text goes only in the
+// `description` field here — never in the system prompt (CLAUDE.md §5).
+function buildLayerUserContent(args: {
+  layerType: LayerType;
+  description: string;
+  bpm?: number;
+  existingLayers: StrudelLayer[];
+}): string {
+  const existing =
+    args.existingLayers.length > 0
+      ? args.existingLayers.map((l) => `- ${l.type}: ${l.code}`).join("\n")
+      : "(없음 — 이것이 첫 레이어입니다)";
+  return [
+    `레이어 타입: ${args.layerType}`,
+    `현재 BPM: ${args.bpm ?? "(미정 — 첫 레이어에서 정해주세요)"}`,
+    `기존 레이어:`,
+    existing,
+    `학생 설명: ${args.description}`,
+  ].join("\n");
+}
+
 export async function generateStrudel(args: {
   apiKey: string;
-  prompt: string;
+  layerType: LayerType;
+  description: string;
+  bpm?: number;
+  existingLayers: StrudelLayer[];
 }): Promise<StrudelGeneration> {
   const client = new Anthropic({ apiKey: args.apiKey });
+  const isFirstLayer = args.existingLayers.length === 0;
 
   let response;
   try {
@@ -48,7 +78,9 @@ export async function generateStrudel(args: {
           cache_control: { type: "ephemeral" },
         },
       ],
-      messages: [{ role: "user", content: args.prompt }],
+      messages: [
+        { role: "user", content: buildLayerUserContent(args) },
+      ],
       output_config: {
         format: {
           type: "json_schema",
@@ -82,7 +114,11 @@ export async function generateStrudel(args: {
     throw new HarnessError("parse_failure", "response missing required fields");
   }
 
-  const { code, explanation } = parsed as StrudelGeneration;
+  const { code, explanation, bpm: rawBpm } = parsed as {
+    code: string;
+    explanation: string;
+    bpm?: unknown;
+  };
 
   if (!isStrudelCodeSafe(code)) {
     throw new HarnessError(
@@ -91,7 +127,19 @@ export async function generateStrudel(args: {
     );
   }
 
-  return { code, explanation };
+  // The first layer establishes tempo (harness picks it); later layers
+  // inherit the bpm passed in the request.
+  let bpm: number;
+  if (isFirstLayer) {
+    bpm =
+      typeof rawBpm === "number" && rawBpm >= BPM_MIN && rawBpm <= BPM_MAX
+        ? Math.round(rawBpm)
+        : DEFAULT_BPM;
+  } else {
+    bpm = args.bpm ?? DEFAULT_BPM;
+  }
+
+  return { code, explanation, bpm };
 }
 
 export type MusicgenRefinement = {
