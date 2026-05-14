@@ -19,11 +19,10 @@ STRUDEL_DAILY_QUOTA = "30"
 MUSICGEN_DAILY_QUOTA = "10"
 
 # D1 database. For local dev, miniflare creates a SQLite file under
-# `.wrangler/state/v3/d1/`. For production, run:
-#   wrangler d1 create plae-db
-# and replace `database_id` below with the returned UUID.
+# `.wrangler/state/v3/d1/`. Production DB created via `wrangler d1 create plae-db`
+# (region APAC).
 [[d1_databases]]
 binding = "DB"
 database_name = "plae-db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "c214b2ac-d9fd-4761-8f0e-0b722a892f1f"
 migrations_dir = "migrations"
