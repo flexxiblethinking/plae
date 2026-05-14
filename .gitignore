@@ -44,3 +44,6 @@ worker-configuration.d.ts
 
 # Testing
 coverage/
+
+# Local source material — textbooks, sample packs (large/copyrighted, never committed)
+data/

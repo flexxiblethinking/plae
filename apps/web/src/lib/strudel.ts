@@ -30,16 +30,19 @@ export function initStrudelOnce(): Promise<void> {
 }
 
 export async function playStrudel(code: string): Promise<void> {
-  await initStrudelOnce();
-
-  // Browsers (Safari especially) keep the AudioContext suspended until an
-  // explicit resume inside a user gesture. playStrudel runs from the click
-  // handler, so resuming here is reliable.
+  // Safari only unlocks the AudioContext if resume() is *called* synchronously
+  // inside the user gesture. playStrudel runs from the Play click handler, so
+  // resume() must fire before the first await that can span I/O — awaiting
+  // initStrudelOnce() first (it downloads drum samples, slow on a school
+  // network) would push resume() past the gesture and leave Safari silent.
+  // Chrome's sticky activation is lenient about this; Safari is not. We kick
+  // resume() off here and await its promise only after init.
   const ctx = getAudioContext();
-  if (ctx.state !== "running") {
-    await ctx.resume();
-  }
+  const resumed =
+    ctx.state === "running" ? Promise.resolve() : ctx.resume();
 
+  await initStrudelOnce();
+  await resumed;
   await evaluate(code);
 }
 

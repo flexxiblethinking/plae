@@ -32,15 +32,15 @@
 
 | 레이어 | 선택 | 비고 |
 |--------|------|------|
-| 프론트엔드 | React + Vite (또는 Next.js) | 단일 페이지 웹앱 |
-| Strudel | `@strudel/web` 패키지 또는 strudel.cc iframe | REPL 컴포넌트 임베드 |
-| 백엔드 (프록시) | Cloudflare Workers 또는 Vercel Edge Functions | 서버리스, 무료 티어 |
-| 인증 | Google OAuth 2.0 | 학교 구글 계정 |
+| 프론트엔드 | React + Vite | 단일 페이지 웹앱. Cloudflare Pages 배포 (`plae-web`) |
+| Strudel | `@strudel/web` 패키지 | `initStrudel()` + `evaluate()` 직접 호출. REPL iframe 아님 — 레이어 작곡기 UI 자체 구현 |
+| 백엔드 (프록시) | Cloudflare Workers (Hono) | 서버리스. 배포: `plae-api` |
+| 인증 | Google OAuth 2.0 | 학교 구글 계정. `@react-oauth/google` ID-token 흐름 |
 | LLM (하네스) | Anthropic Claude Haiku | 자연어 → Strudel/MusicGen 프롬프트 변환 |
-| 음악 생성 모델 | MusicGen (HF Inference Endpoint) | medium 모델 우선 검토 |
-| 데이터 저장 | Cloudflare D1 (SQLite) | 사용자, 사용량 로그, 작품 메타데이터. 관계형·원자성 필요 |
-| 작품 오디오 저장 | Cloudflare R2 (옵션) | MusicGen 결과물 보관 시 |
-| 모니터링 | 간단한 로그 + 강사용 대시보드 | 학급별 사용량 확인 |
+| 음악 생성 모델 | MusicGen-small (HF Inference Endpoint) | L4 GPU, scale-to-zero. 커스텀 핸들러 `infra/musicgen-endpoint/` |
+| 데이터 저장 | Cloudflare D1 (SQLite) | 사용자, 사용량 로그. DB `plae-db` (region APAC) |
+| 작품 오디오 저장 | Cloudflare R2 (옵션, 미구현) | MusicGen 결과물 보관 시 |
+| 모니터링 | 로그 + 강사용 대시보드 (`/api/teacher/stats`) | 학급별 사용량 확인 |
 
 ---
 
@@ -53,7 +53,7 @@
    ▼
 [Frontend (React SPA)]
    │  ┌─────────────────────────────┐
-   │  │ - Strudel REPL 임베드        │
+   │  │ - Strudel 레이어 작곡기       │
    │  │ - 입력 UI (객관/감성 모드)    │
    │  │ - 결과 재생/저장 UI          │
    │  └─────────────────────────────┘
@@ -75,41 +75,46 @@
 ```
 
 ### 데이터 흐름
-1. **객관 모드**: 학생 입력 → Workers → Haiku (Strudel DSL 생성) → 클라이언트 Strudel REPL 실행
+1. **객관 모드 — 레이어 누적 작곡기**: CLAUDE.md 초안의 1회성 "묘사 → 코드 → 재생"이 아니라, 학생이 레이어(드럼/베이스/코드/멜로디)를 하나씩 쌓아 4마디 루프를 완성하는 구조.
+   - 학생이 레이어 타입 선택 + 자연어 묘사 → `POST /api/generate/strudel` → Haiku가 **레이어 한 줄**의 Strudel 패턴 + 설명 반환 (첫 레이어에서만 BPM 결정)
+   - 요청에 기존 레이어들을 함께 보내 어울리는 패턴 생성 (harness 시스템 프롬프트 v2)
+   - **조립은 클라이언트 책임**: `setcpm(bpm/4)` + 각 레이어를 `$:` 줄로 stack. 레이어 코드 자체엔 setcpm/stack/`$:` 없음
+   - `@strudel/web`의 `evaluate()`로 전체 stack 재생
 2. **감성 모드**: 학생 입력 → Workers → Haiku (MusicGen 프롬프트 정제) → MusicGen Endpoint → 오디오 반환 → 클라이언트 재생
 
 ---
 
 ## 4. 구현 단계
 
-### Phase 1 — 인프라 골격 (최우선)
-- [ ] Cloudflare Workers 프로젝트 셋업
-- [ ] Google OAuth 통합 (학교 도메인 화이트리스트 가능 시 적용)
-- [ ] Anthropic API 프록시 엔드포인트 (`POST /api/generate/strudel`)
-- [ ] D1 기반 사용자/사용량 테이블 (학생별 일일 카운터)
-- [ ] 기본 React 프론트엔드 + 로그인 흐름
+### Phase 1 — 인프라 골격 (최우선) ✅ 완료
+- [x] Cloudflare Workers 프로젝트 셋업
+- [x] Google OAuth 통합 (학교 도메인 화이트리스트 가능 시 적용)
+- [x] Anthropic API 프록시 엔드포인트 (`POST /api/generate/strudel`)
+- [x] D1 기반 사용자/사용량 테이블 (학생별 일일 카운터)
+- [x] 기본 React 프론트엔드 + 로그인 흐름
 
-### Phase 2 — Strudel 통합 (객관 모드)
-- [ ] Strudel REPL 컴포넌트 임베드
-- [ ] Haiku 하네스 시스템 프롬프트 v1 작성 (음악 이론 어휘 → Strudel DSL)
-- [ ] 입력 → 코드 생성 → 재생 end-to-end 확인
-- [ ] 출력 파싱·검증·fallback 로직
+### Phase 2 — Strudel 통합 (객관 모드) ✅ 완료
+- [x] 레이어 작곡기 UI (`@strudel/web` 직접 임베드 — REPL iframe 아님)
+- [x] Haiku 하네스 시스템 프롬프트 작성 — v2 (레이어 누적 작곡 구조, `docs/harness/`)
+- [x] 입력 → 코드 생성 → 재생 end-to-end 확인
+- [x] 출력 파싱·검증·fallback 로직
 
-### Phase 3 — MusicGen 통합 (감성 모드)
-- [ ] HF Inference Endpoint 배포 (musicgen-medium)
-- [ ] MusicGen 프록시 엔드포인트 (`POST /api/generate/musicgen`)
-- [ ] Haiku 하네스: 학생 입력 → MusicGen용 영문 프롬프트 정제
-- [ ] 오디오 클립 클라이언트 재생 (HTMLAudioElement 또는 Web Audio)
+### Phase 3 — MusicGen 통합 (감성 모드) ✅ 완료
+- [x] HF Inference Endpoint 배포 (musicgen-**small** — medium 대신 비용·지연 고려)
+- [x] MusicGen 프록시 엔드포인트 (`POST /api/generate/musicgen`)
+- [x] Haiku 하네스: 학생 입력 → MusicGen용 영문 프롬프트 정제
+- [x] 오디오 클립 클라이언트 재생
 
-### Phase 4 — 안전·관리 기능
-- [ ] 입력 필터링 (금칙어, 부적절 표현)
-- [ ] 학생당 사용량 한도 enforce
-- [ ] 강사용 모니터링 대시보드 (학급별 사용량, 에러 로그)
-- [ ] (옵션) 작품 저장·공유 기능
+### Phase 4 — 안전·관리 기능 ✅ 완료
+- [x] 입력 필터링 (금칙어, 부적절 표현)
+- [x] 학생당 사용량 한도 enforce
+- [x] 강사용 모니터링 대시보드 (`/api/teacher/stats`)
+- [ ] (옵션) 작품 저장·공유 기능 — 미구현, 옵션
 
-### Phase 5 — 수업 직전 검증
+### Phase 5 — 배포 + 수업 직전 검증
+배포는 완료 (2026-05-15): Pages `plae-web` + Workers `plae-api` + D1 `plae-db`, 시크릿 5개, OAuth 오리진 등록, end-to-end 검증. 남은 건 검증 항목:
 - [ ] 학교 네트워크 환경 테스트 (가능하면 사전 방문)
-- [ ] 태블릿 브라우저 호환성 테스트 (특히 Web Audio API)
+- [ ] 태블릿 브라우저 호환성 테스트 (특히 Web Audio API — pages.dev에서 데스크탑 Safari 정상 확인, iPad 실기기 미검증)
 - [ ] 동시 요청 부하 테스트 (20명 시뮬레이션)
 - [ ] MusicGen Endpoint 워밍업 절차 문서화
 
