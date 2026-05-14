@@ -12,53 +12,53 @@ export function HomeScreen() {
 
   const isTeacher = state.user.role === "teacher";
 
+  const navBtn = (active: boolean) =>
+    "rounded-lg px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors " +
+    (active ? "bg-panel-2 text-cream" : "text-cream/40 hover:text-cream");
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <h1 className="text-xl font-bold tracking-tight">plae</h1>
-          {isTeacher && (
-            <nav className="flex gap-1">
-              <button
-                type="button"
-                onClick={() => setView("compose")}
-                className={
-                  view === "compose"
-                    ? "rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-900"
-                    : "rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-900"
-                }
-              >
-                음악 만들기
-              </button>
-              <button
-                type="button"
-                onClick={() => setView("dashboard")}
-                className={
-                  view === "dashboard"
-                    ? "rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-900"
-                    : "rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-900"
-                }
-              >
-                강사 대시보드
-              </button>
-            </nav>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-slate-600">
-            @{state.user.emailDomain}
-          </span>
-          <button
-            type="button"
-            onClick={signOut}
-            className="text-sm font-medium text-slate-700 hover:text-slate-900"
-          >
-            로그아웃
-          </button>
+    <div className="min-h-screen">
+      <header className="bg-panel text-cream">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-3.5">
+          <div className="flex items-center gap-5">
+            <span className="font-mono text-xl font-bold lowercase tracking-tight">
+              pl<span className="text-accent">a</span>e
+            </span>
+            {isTeacher && (
+              <nav className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setView("compose")}
+                  className={navBtn(view === "compose")}
+                >
+                  음악 만들기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView("dashboard")}
+                  className={navBtn(view === "dashboard")}
+                >
+                  강사 대시보드
+                </button>
+              </nav>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="hidden font-mono text-[11px] uppercase tracking-wider text-cream/40 sm:inline">
+              @{state.user.emailDomain}
+            </span>
+            <button
+              type="button"
+              onClick={signOut}
+              className="font-mono text-[11px] font-bold uppercase tracking-wider text-cream/60 transition-colors hover:text-accent"
+            >
+              로그아웃
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="px-6 py-10 max-w-2xl mx-auto">
+      <main className="mx-auto max-w-3xl px-5 py-10">
         {isTeacher && view === "dashboard" ? (
           <TeacherDashboard />
         ) : (

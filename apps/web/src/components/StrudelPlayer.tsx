@@ -32,8 +32,8 @@ export function StrudelPlayer({ code }: { code: string }) {
   };
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <pre className="overflow-x-auto rounded bg-slate-900 px-3 py-2 text-sm text-slate-100">
+    <div className="rounded-xl border border-white/[0.06] bg-panel-2 p-4">
+      <pre className="overflow-x-auto rounded-lg bg-black/35 px-3 py-2.5 font-mono text-xs leading-relaxed text-signal">
         <code>{code}</code>
       </pre>
       <div className="mt-3 flex items-center gap-3">
@@ -41,7 +41,7 @@ export function StrudelPlayer({ code }: { code: string }) {
           <button
             type="button"
             onClick={handleStop}
-            className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            className="btn btn-dark text-signal"
           >
             ■ 정지
           </button>
@@ -50,13 +50,13 @@ export function StrudelPlayer({ code }: { code: string }) {
             type="button"
             onClick={handlePlay}
             disabled={status === "loading"}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="btn btn-accent"
           >
             {status === "loading" ? "준비 중…" : "▶ 재생"}
           </button>
         )}
         {status === "error" && error && (
-          <span className="text-sm text-red-600">{error}</span>
+          <span className="text-sm text-accent">{error}</span>
         )}
       </div>
     </div>

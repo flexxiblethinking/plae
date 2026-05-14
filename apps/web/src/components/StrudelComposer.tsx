@@ -98,19 +98,17 @@ export function StrudelComposer() {
     bpm !== null && layers.length > 0 ? assembleStack(layers, bpm) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="panel space-y-5">
+      <p className="panel-label">객관 모드 — 레이어 작곡기</p>
+
       <div className="space-y-3">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {LAYER_TYPES.map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setNextType(t)}
-              className={
-                t === nextType
-                  ? "rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white"
-                  : "rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              }
+              className={"btn " + (t === nextType ? "btn-accent" : "btn-dark")}
             >
               {LAYER_LABEL[t]}
             </button>
@@ -118,10 +116,7 @@ export function StrudelComposer() {
         </div>
 
         <div>
-          <label
-            htmlFor="layer-desc"
-            className="block text-sm font-medium text-slate-700"
-          >
+          <label htmlFor="layer-desc" className="block text-cream/80">
             {LAYER_LABEL[nextType]} 레이어를 어떻게 만들까요?
           </label>
           <textarea
@@ -131,17 +126,17 @@ export function StrudelComposer() {
             maxLength={PROMPT_MAX}
             rows={2}
             placeholder={LAYER_PLACEHOLDER[nextType]}
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-base focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="field mt-2 text-base"
           />
-          <div className="mt-1 flex items-center justify-between">
-            <span className="text-xs text-slate-400">
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <span className="font-mono text-[11px] text-cream/35">
               {description.length}/{PROMPT_MAX}
             </span>
             <button
               type="button"
               onClick={handleAddLayer}
               disabled={!canSubmit}
-              className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+              className="btn btn-accent"
             >
               {submitting ? "레이어 만드는 중…" : "레이어 추가"}
             </button>
@@ -150,39 +145,39 @@ export function StrudelComposer() {
       </div>
 
       {errorMsg && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-accent">
           {errorMsg}
         </div>
       )}
 
       {layers.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-3 border-t border-white/[0.07] pt-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-700">
+            <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-cream/70">
               내 작품 — {layers.length}개 레이어
-              {bpm !== null && ` · ${bpm} BPM`}
+              {bpm !== null && <span className="text-signal"> · {bpm} BPM</span>}
             </h3>
             <button
               type="button"
               onClick={handleRemoveLast}
-              className="text-sm font-medium text-slate-500 hover:text-slate-900"
+              className="font-mono text-[11px] font-bold uppercase tracking-wider text-cream/40 transition-colors hover:text-accent"
             >
               마지막 레이어 빼기
             </button>
           </div>
 
-          <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+          <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-xl bg-panel-2">
             {layers.map((l, i) => (
-              <li key={i} className="px-4 py-2">
+              <li key={i} className="px-4 py-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-700">
+                  <span className="chip bg-accent/15 text-accent">
                     {LAYER_LABEL[l.type]}
                   </span>
-                  <span className="text-sm text-slate-600">
+                  <span className="text-sm text-cream/75">
                     {l.description}
                   </span>
                 </div>
-                <code className="mt-1 block overflow-x-auto text-xs text-slate-400">
+                <code className="mt-1 block overflow-x-auto font-mono text-[11px] text-cream/35">
                   {l.code}
                 </code>
               </li>
@@ -190,10 +185,12 @@ export function StrudelComposer() {
           </ul>
 
           {latestExplanation && (
-            <p className="text-slate-700">{latestExplanation}</p>
+            <p className="text-cream/80">{latestExplanation}</p>
           )}
           {stackCode && <StrudelPlayer code={stackCode} />}
-          {quotaText && <p className="text-xs text-slate-400">{quotaText}</p>}
+          {quotaText && (
+            <p className="font-mono text-[11px] text-cream/35">{quotaText}</p>
+          )}
         </div>
       )}
     </div>

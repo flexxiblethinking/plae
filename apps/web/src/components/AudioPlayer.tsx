@@ -7,7 +7,7 @@ export function AudioPlayer({
 }) {
   const src = `data:${mimeType};base64,${audioBase64}`;
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-white/[0.06] bg-panel-2 p-4">
       {/* eslint-disable-next-line jsx-a11y/media-has-caption -- generated music clip, no captions */}
       <audio controls src={src} className="w-full" />
     </div>

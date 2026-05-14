@@ -1,3 +1,111 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* plae 디자인 시스템 — "악기 패널". 토큰은 tailwind.config.ts, 설명은 DESIGN.md. */
+
+@layer base {
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    /* 미세한 종이 그레인 */
+    background-image: radial-gradient(rgba(35, 32, 27, 0.045) 1px, transparent 1px);
+    background-size: 5px 5px;
+  }
+  ::selection {
+    @apply bg-accent text-paper;
+  }
+}
+
+@layer components {
+  /* 어두운 모듈 카드 — "데스크 위 하드웨어" */
+  .panel {
+    @apply rounded-2xl bg-panel text-cream p-5 sm:p-6;
+    box-shadow:
+      0 2px 0 rgba(0, 0, 0, 0.28),
+      0 20px 44px -22px rgba(0, 0, 0, 0.55);
+  }
+
+  /* 실크스크린 라벨 */
+  .panel-label {
+    @apply font-mono text-[11px] font-bold uppercase tracking-[0.2em];
+    color: rgba(237, 230, 214, 0.5);
+  }
+  .panel-label::before {
+    content: "■";
+    @apply mr-2 text-accent;
+  }
+
+  /* 촉각 버튼 — base + variant 조합: class="btn btn-accent" */
+  .btn {
+    @apply font-mono text-sm font-bold uppercase tracking-wider rounded-xl px-4 py-2.5
+      transition-[transform,box-shadow,background-color] duration-100 select-none
+      disabled:opacity-40 disabled:pointer-events-none;
+  }
+  .btn-accent {
+    @apply bg-accent text-paper;
+    box-shadow: 0 4px 0 #bf3a1c;
+  }
+  .btn-accent:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #bf3a1c;
+  }
+  .btn-dark {
+    @apply bg-panel-2 text-cream;
+    box-shadow: 0 4px 0 #1a1712;
+  }
+  .btn-dark:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #1a1712;
+  }
+  .btn-ghost {
+    @apply border-2 border-ink/15 text-ink bg-transparent;
+  }
+  .btn-ghost:active:not(:disabled) {
+    @apply bg-ink/5;
+  }
+
+  /* 드럼 패드 / 큰 터치 타깃 */
+  .pad {
+    @apply rounded-2xl font-mono font-bold uppercase tracking-wide text-cream bg-panel-2
+      transition-[transform,box-shadow,background-color] duration-75 select-none
+      disabled:opacity-40 disabled:pointer-events-none;
+    box-shadow: 0 6px 0 #1a1712;
+  }
+  .pad:active:not(:disabled) {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #1a1712;
+  }
+
+  /* 입력칸 — 패널(어두운 면) 위 */
+  .field {
+    @apply w-full rounded-xl bg-panel-2 text-cream placeholder:text-cream/25
+      px-4 py-3 border border-white/[0.06] transition-colors
+      focus:outline-none focus:border-signal/70;
+  }
+  /* 입력칸 — paper(밝은 면) 위 */
+  .field-light {
+    @apply w-full rounded-xl bg-white/55 text-ink placeholder:text-ink/30
+      px-4 py-3 border border-hair transition-colors
+      focus:outline-none focus:border-accent;
+  }
+
+  .chip {
+    @apply font-mono text-[10px] font-bold uppercase tracking-wider rounded px-2 py-1;
+  }
+}
+
+@layer utilities {
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-rise {
+    animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  }
+}

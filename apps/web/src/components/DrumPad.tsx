@@ -71,14 +71,19 @@ export function DrumPad() {
 
   if (loadError) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-        드럼 소리를 불러오지 못했어요. 새로고침 해보세요.
+      <div className="panel">
+        <p className="panel-label">드럼 패드</p>
+        <p className="mt-3 text-sm text-accent">
+          드럼 소리를 불러오지 못했어요. 새로고침 해보세요.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="panel animate-rise space-y-6">
+      <p className="panel-label">드럼 패드 — 16-Step Sequencer</p>
+
       {/* 탭 패드 — 소리 들어보기 */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {TRACKS.map(({ id, label }) => (
@@ -88,11 +93,8 @@ export function DrumPad() {
             disabled={!ready}
             onPointerDown={() => handleTap(id)}
             className={
-              "select-none rounded-xl py-8 text-sm font-semibold transition-colors " +
-              (flash === id
-                ? "bg-indigo-500 text-white"
-                : "bg-slate-800 text-slate-100 hover:bg-slate-700") +
-              (ready ? "" : " opacity-50")
+              "pad py-9 text-xs " +
+              (flash === id ? "!bg-accent !text-paper" : "")
             }
           >
             {label}
@@ -101,16 +103,16 @@ export function DrumPad() {
       </div>
 
       {/* 컨트롤 */}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4 border-t border-white/[0.07] pt-5">
         <button
           type="button"
           onClick={handlePlayToggle}
           disabled={!ready}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+          className={"btn " + (playing ? "btn-dark text-signal" : "btn-accent")}
         >
           {playing ? "■ 정지" : "▶ 재생"}
         </button>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-wider text-cream/55">
           빠르기
           <input
             type="range"
@@ -118,13 +120,14 @@ export function DrumPad() {
             max={160}
             value={bpm}
             onChange={(e) => setBpm(Number(e.target.value))}
+            className="accent-accent"
           />
-          <span className="w-10 tabular-nums">{bpm}</span>
+          <span className="w-9 tabular-nums text-signal">{bpm}</span>
         </label>
         <button
           type="button"
           onClick={() => setPattern(emptyPattern())}
-          className="text-sm font-medium text-slate-500 hover:text-slate-900"
+          className="font-mono text-[11px] font-bold uppercase tracking-wider text-cream/40 transition-colors hover:text-accent"
         >
           지우기
         </button>
@@ -132,10 +135,10 @@ export function DrumPad() {
 
       {/* 16-step 시퀀서 그리드 */}
       <div className="overflow-x-auto">
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {TRACKS.map(({ id, label }) => (
-            <div key={id} className="flex items-center gap-2">
-              <span className="w-20 shrink-0 text-xs font-medium text-slate-600">
+            <div key={id} className="flex items-center gap-3">
+              <span className="w-16 shrink-0 font-mono text-[10px] font-bold uppercase tracking-wide text-cream/45">
                 {label}
               </span>
               <div className="flex gap-1">
@@ -151,13 +154,15 @@ export function DrumPad() {
                       aria-label={`${label} ${step + 1}번째 칸`}
                       aria-pressed={on}
                       className={
-                        "h-8 w-8 shrink-0 rounded transition-colors hover:opacity-80 " +
+                        "h-8 w-8 shrink-0 rounded-md transition-all " +
                         (on
-                          ? "bg-indigo-600"
+                          ? "bg-accent"
                           : isBeat
-                            ? "bg-slate-300"
-                            : "bg-slate-200") +
-                        (isPlayhead ? " ring-2 ring-amber-400" : "")
+                            ? "bg-white/[0.13]"
+                            : "bg-white/[0.05]") +
+                        (isPlayhead
+                          ? " ring-2 ring-marigold ring-offset-2 ring-offset-panel"
+                          : "")
                       }
                     />
                   );
@@ -168,8 +173,8 @@ export function DrumPad() {
         </div>
       </div>
 
-      <p className="text-xs text-slate-400">
-        패드를 눌러 소리를 들어보고, 아래 칸을 켜서 리듬을 만들어요. 진한 칸이
+      <p className="font-mono text-[11px] leading-relaxed text-cream/35">
+        패드를 눌러 소리를 들어보고, 아래 칸을 켜서 리듬을 만들어요. 밝은 칸이
         박자(1·2·3·4박)예요.
       </p>
     </div>
