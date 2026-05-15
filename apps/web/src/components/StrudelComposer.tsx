@@ -13,6 +13,12 @@ import {
   type KeyMode,
   type ScaleDegree,
 } from "../lib/harmony";
+import {
+  INSTRUMENTS,
+  applyInstrument,
+  DEFAULT_INSTRUMENT,
+  BASS_SUFFIX,
+} from "../lib/instruments";
 import { StrudelPlayer } from "./StrudelPlayer";
 
 const PROMPT_MAX = 500;
@@ -22,8 +28,9 @@ const BPM_MAX = 160;
 type Layer = {
   type: LayerType;
   description: string;
-  code: string;       // chord code for harmony; pattern for drum/melody
-  bassCode?: string;  // only for harmony
+  code: string;        // chord code for harmony; pattern for drum/melody
+  bassCode?: string;   // only for harmony
+  instrument?: string; // synth timbre id; set for harmony/melody, undefined for drum
 };
 
 const LAYER_TYPES: LayerType[] = ["drum", "harmony", "melody"];
@@ -40,11 +47,12 @@ const LAYER_PLACEHOLDER: Record<ApiLayerType, string> = {
 };
 
 // Bass line goes before chord so the chord voicing sits on top.
+// Each layer's picked timbre is applied here; bass uses a fixed bass synth.
 function assembleStack(layers: Layer[], bpm: number): string {
   const lines = [`setcpm(${bpm}/4)`];
   for (const l of layers) {
-    if (l.bassCode) lines.push(`$: ${l.bassCode}`);
-    lines.push(`$: ${l.code}`);
+    if (l.bassCode) lines.push(`$: ${l.bassCode}${BASS_SUFFIX}`);
+    lines.push(`$: ${applyInstrument(l.code, l.instrument)}`);
   }
   return lines.join("\n");
 }
@@ -103,7 +111,13 @@ export function StrudelComposer() {
     if (res.ok) {
       setLayers((prev) => [
         ...prev,
-        { type: layerType, description: trimmed, code: res.data.code },
+        {
+          type: layerType,
+          description: trimmed,
+          code: res.data.code,
+          // 드럼은 샘플이라 음색 선택 없음. 선율만 신스 음색을 가짐.
+          instrument: layerType === "melody" ? DEFAULT_INSTRUMENT : undefined,
+        },
       ]);
       setLatestExplanation(res.data.explanation);
       setQuotaText(`오늘 ${res.data.quota.used}/${res.data.quota.limit}회 사용했어요.`);
@@ -124,6 +138,7 @@ export function StrudelComposer() {
         description: built.description,
         code: built.code,
         bassCode: built.bassCode,
+        instrument: DEFAULT_INSTRUMENT,
       },
     ]);
     setLatestExplanation(built.explanation);
@@ -132,6 +147,12 @@ export function StrudelComposer() {
 
   const setDegree = (index: number, degree: ScaleDegree) => {
     setHarmonyDegrees((prev) => prev.map((d, i) => (i === index ? degree : d)));
+  };
+
+  const setLayerInstrument = (index: number, instrument: string) => {
+    setLayers((prev) =>
+      prev.map((l, i) => (i === index ? { ...l, instrument } : l)),
+    );
   };
 
   const handleRemoveLast = () => {
@@ -295,7 +316,23 @@ export function StrudelComposer() {
                   <span className="chip bg-accent/15 text-accent">
                     {LAYER_LABEL[l.type]}
                   </span>
-                  <span className="text-sm text-cream/75">{l.description}</span>
+                  <span className="flex-1 truncate text-sm text-cream/75">
+                    {l.description}
+                  </span>
+                  {l.instrument !== undefined && (
+                    <select
+                      value={l.instrument}
+                      onChange={(e) => setLayerInstrument(i, e.target.value)}
+                      aria-label={`${LAYER_LABEL[l.type]} 악기`}
+                      className="shrink-0 rounded-lg border border-white/[0.06] bg-panel-2 px-2 py-1 font-mono text-[11px] text-cream"
+                    >
+                      {INSTRUMENTS.map((inst) => (
+                        <option key={inst.id} value={inst.id}>
+                          {inst.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <code className="mt-1 block overflow-x-auto whitespace-pre font-mono text-[11px] text-cream/35">
                   {l.bassCode
