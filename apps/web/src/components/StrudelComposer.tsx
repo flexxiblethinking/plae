@@ -1,55 +1,83 @@
 import { useEffect, useState } from "react";
-import type { LayerType } from "@plae/shared";
+import type { LayerType, ApiLayerType, HarnessLayerType, StrudelLayer } from "@plae/shared";
 import { useAuth } from "../lib/auth";
 import { api, errorMessage } from "../lib/api";
 import { initStrudelOnce } from "../lib/strudel";
+import {
+  buildHarmonyLayer,
+  chordLabel,
+  keyName,
+  CORE_DEGREES,
+  EXTENSION_DEGREES,
+  DEFAULT_DEGREES,
+  type KeyMode,
+  type ScaleDegree,
+} from "../lib/harmony";
 import { StrudelPlayer } from "./StrudelPlayer";
 
 const PROMPT_MAX = 500;
+const BPM_MIN = 60;
+const BPM_MAX = 160;
 
 type Layer = {
   type: LayerType;
   description: string;
-  code: string;
+  code: string;       // chord code for harmony; pattern for drum/melody
+  bassCode?: string;  // only for harmony
 };
 
-const LAYER_TYPES: LayerType[] = ["drum", "bass", "chord", "melody"];
+const LAYER_TYPES: LayerType[] = ["drum", "harmony", "melody"];
 
 const LAYER_LABEL: Record<LayerType, string> = {
-  drum: "드럼",
-  bass: "베이스",
-  chord: "코드",
-  melody: "멜로디",
+  drum: "리듬",
+  harmony: "화성",
+  melody: "선율",
 };
 
-const LAYER_PLACEHOLDER: Record<LayerType, string> = {
-  drum: "예: 신나고 빠른 드럼 비트",
-  bass: "예: 드럼에 맞춰 통통 튀는 베이스",
-  chord: "예: 잔잔하게 깔리는 화음 반주",
-  melody: "예: 밝고 경쾌한 멜로디",
+const LAYER_PLACEHOLDER: Record<ApiLayerType, string> = {
+  drum: "예: 4박자 기본 리듬, 3박자 왈츠 리듬",
+  melody: "예: 도레미로 시작하는 밝은 선율",
 };
 
-// The client owns composition assembly: tempo + each layer as a `$:` line.
-// Layer code itself never contains setcpm (see harness/strudel.ts).
+// Bass line goes before chord so the chord voicing sits on top.
 function assembleStack(layers: Layer[], bpm: number): string {
-  return [`setcpm(${bpm}/4)`, ...layers.map((l) => `$: ${l.code}`)].join("\n");
+  const lines = [`setcpm(${bpm}/4)`];
+  for (const l of layers) {
+    if (l.bassCode) lines.push(`$: ${l.bassCode}`);
+    lines.push(`$: ${l.code}`);
+  }
+  return lines.join("\n");
+}
+
+// Harmony expands to chord + bass entries for the harness context.
+function toHarnessLayers(layers: Layer[]): StrudelLayer[] {
+  return layers.flatMap((l) => {
+    if (l.type === "harmony" && l.bassCode) {
+      return [
+        { type: "chord" as HarnessLayerType, code: l.code },
+        { type: "bass" as HarnessLayerType, code: l.bassCode },
+      ];
+    }
+    return [{ type: l.type as HarnessLayerType, code: l.code }];
+  });
 }
 
 export function StrudelComposer() {
   const { state } = useAuth();
   const [layers, setLayers] = useState<Layer[]>([]);
-  const [bpm, setBpm] = useState<number | null>(null);
+  const [bpm, setBpm] = useState(120);
   const [nextType, setNextType] = useState<LayerType>("drum");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [latestExplanation, setLatestExplanation] = useState<string | null>(
-    null,
-  );
+  const [latestExplanation, setLatestExplanation] = useState<string | null>(null);
   const [quotaText, setQuotaText] = useState<string | null>(null);
 
-  // Warm up Strudel early so its audio-unlock listener is registered before
-  // the student's first play click, and drum samples start downloading.
+  // 화성 위저드 상태 — 조성 + 4마디 화음 진행.
+  const [harmonyKey, setHarmonyKey] = useState<KeyMode>("major");
+  const [harmonyDegrees, setHarmonyDegrees] =
+    useState<ScaleDegree[]>(DEFAULT_DEGREES);
+
   useEffect(() => {
     void initStrudelOnce();
   }, []);
@@ -58,29 +86,27 @@ export function StrudelComposer() {
   const idToken = state.idToken;
 
   const trimmed = description.trim();
-  const canSubmit =
-    trimmed.length > 0 && trimmed.length <= PROMPT_MAX && !submitting;
+  const canSubmit = trimmed.length > 0 && trimmed.length <= PROMPT_MAX && !submitting;
 
+  // 리듬 / 선율 — LLM 하네스 경유.
   const handleAddLayer = async () => {
-    if (!canSubmit) return;
+    if (nextType === "harmony" || !canSubmit) return;
+    const layerType: ApiLayerType = nextType;
     setSubmitting(true);
     setErrorMsg(null);
     const res = await api.generateStrudel(idToken, {
-      layerType: nextType,
+      layerType,
       description: trimmed,
-      bpm: bpm ?? undefined,
-      existingLayers: layers.map((l) => ({ type: l.type, code: l.code })),
+      bpm,
+      existingLayers: toHarnessLayers(layers),
     });
     if (res.ok) {
       setLayers((prev) => [
         ...prev,
-        { type: nextType, description: trimmed, code: res.data.code },
+        { type: layerType, description: trimmed, code: res.data.code },
       ]);
-      setBpm(res.data.bpm);
       setLatestExplanation(res.data.explanation);
-      setQuotaText(
-        `오늘 ${res.data.quota.used}/${res.data.quota.limit}회 사용했어요.`,
-      );
+      setQuotaText(`오늘 ${res.data.quota.used}/${res.data.quota.limit}회 사용했어요.`);
       setDescription("");
     } else {
       setErrorMsg(errorMessage(res.error.code));
@@ -88,18 +114,50 @@ export function StrudelComposer() {
     setSubmitting(false);
   };
 
+  // 화성 — 결정론적 생성, API 호출 없음 (사용량 차감 없음).
+  const handleAddHarmonyLayer = () => {
+    const built = buildHarmonyLayer(harmonyKey, harmonyDegrees);
+    setLayers((prev) => [
+      ...prev,
+      {
+        type: "harmony",
+        description: built.description,
+        code: built.code,
+        bassCode: built.bassCode,
+      },
+    ]);
+    setLatestExplanation(built.explanation);
+    setErrorMsg(null);
+  };
+
+  const setDegree = (index: number, degree: ScaleDegree) => {
+    setHarmonyDegrees((prev) => prev.map((d, i) => (i === index ? degree : d)));
+  };
+
   const handleRemoveLast = () => {
-    if (layers.length <= 1) setBpm(null);
     setLayers((prev) => prev.slice(0, -1));
     setLatestExplanation(null);
   };
 
-  const stackCode =
-    bpm !== null && layers.length > 0 ? assembleStack(layers, bpm) : null;
+  const stackCode = layers.length > 0 ? assembleStack(layers, bpm) : null;
 
   return (
     <div className="panel space-y-5">
-      <p className="panel-label">객관 모드 — 레이어 작곡기</p>
+      <p className="panel-label">AI 코딩 음악 — 레이어 작곡기</p>
+
+      {/* 빠르기(BPM) — 작곡 시작 전에 정하고, 모든 레이어에 공통 적용. */}
+      <label className="flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-wider text-cream/55">
+        빠르기
+        <input
+          type="range"
+          min={BPM_MIN}
+          max={BPM_MAX}
+          value={bpm}
+          onChange={(e) => setBpm(Number(e.target.value))}
+          className="accent-accent"
+        />
+        <span className="w-9 tabular-nums text-signal">{bpm}</span>
+      </label>
 
       <div className="space-y-3">
         <div className="flex flex-wrap gap-1.5">
@@ -115,33 +173,97 @@ export function StrudelComposer() {
           ))}
         </div>
 
-        <div>
-          <label htmlFor="layer-desc" className="block text-cream/80">
-            {LAYER_LABEL[nextType]} 레이어를 어떻게 만들까요?
-          </label>
-          <textarea
-            id="layer-desc"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={PROMPT_MAX}
-            rows={2}
-            placeholder={LAYER_PLACEHOLDER[nextType]}
-            className="field mt-2 text-base"
-          />
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <span className="font-mono text-[11px] text-cream/35">
-              {description.length}/{PROMPT_MAX}
-            </span>
-            <button
-              type="button"
-              onClick={handleAddLayer}
-              disabled={!canSubmit}
-              className="btn btn-accent"
-            >
-              {submitting ? "레이어 만드는 중…" : "레이어 추가"}
-            </button>
+        {nextType === "harmony" ? (
+          /* 화성 위저드 — 조성 + 4마디 화음 진행을 골라 결정론적으로 생성. */
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] uppercase tracking-wider text-cream/55">
+                조성
+              </span>
+              {(["major", "minor"] as KeyMode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setHarmonyKey(m)}
+                  className={"btn " + (m === harmonyKey ? "btn-accent" : "btn-dark")}
+                >
+                  {keyName(m)}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {harmonyDegrees.map((deg, i) => (
+                <label key={i} className="block">
+                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-wider text-cream/45">
+                    {i + 1}마디
+                  </span>
+                  <select
+                    value={deg}
+                    onChange={(e) =>
+                      setDegree(i, Number(e.target.value) as ScaleDegree)
+                    }
+                    className="field text-sm"
+                  >
+                    <optgroup label="주요 3화음">
+                      {CORE_DEGREES.map((d) => (
+                        <option key={d} value={d}>
+                          {chordLabel(harmonyKey, d)}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="확장 화음">
+                      {EXTENSION_DEGREES.map((d) => (
+                        <option key={d} value={d}>
+                          {chordLabel(harmonyKey, d)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleAddHarmonyLayer}
+                className="btn btn-accent"
+              >
+                화성 레이어 추가
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* 리듬 / 선율 — 자연어 묘사 → LLM 하네스. */
+          <div>
+            <label htmlFor="layer-desc" className="block text-cream/80">
+              {LAYER_LABEL[nextType]} 레이어를 어떻게 만들까요?
+            </label>
+            <textarea
+              id="layer-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={PROMPT_MAX}
+              rows={2}
+              placeholder={LAYER_PLACEHOLDER[nextType]}
+              className="field mt-2 text-base"
+            />
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <span className="font-mono text-[11px] text-cream/35">
+                {description.length}/{PROMPT_MAX}
+              </span>
+              <button
+                type="button"
+                onClick={handleAddLayer}
+                disabled={!canSubmit}
+                className="btn btn-accent"
+              >
+                {submitting ? "레이어 만드는 중…" : "레이어 추가"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {errorMsg && (
@@ -155,7 +277,7 @@ export function StrudelComposer() {
           <div className="flex items-center justify-between">
             <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-cream/70">
               내 작품 — {layers.length}개 레이어
-              {bpm !== null && <span className="text-signal"> · {bpm} BPM</span>}
+              <span className="text-signal"> · {bpm} BPM</span>
             </h3>
             <button
               type="button"
@@ -173,12 +295,12 @@ export function StrudelComposer() {
                   <span className="chip bg-accent/15 text-accent">
                     {LAYER_LABEL[l.type]}
                   </span>
-                  <span className="text-sm text-cream/75">
-                    {l.description}
-                  </span>
+                  <span className="text-sm text-cream/75">{l.description}</span>
                 </div>
-                <code className="mt-1 block overflow-x-auto font-mono text-[11px] text-cream/35">
-                  {l.code}
+                <code className="mt-1 block overflow-x-auto whitespace-pre font-mono text-[11px] text-cream/35">
+                  {l.bassCode
+                    ? `코드: ${l.code}\n베이스: ${l.bassCode}`
+                    : l.code}
                 </code>
               </li>
             ))}

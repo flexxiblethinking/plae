@@ -38,24 +38,30 @@ export type UsageLogResponse = {
 };
 
 // Layered Strudel composition: the student stacks one typed layer at a time.
-export type LayerType = "drum" | "bass" | "chord" | "melody";
+//
+// LayerType — UI-facing (3 elements: 리듬 / 화성 / 선율)
+// HarnessLayerType — harness-internal; harmony expands to chord + bass for context
+// ApiLayerType — what the LLM harness handles; harmony is generated
+//   deterministically on the client (apps/web/src/lib/harmony.ts).
+export type LayerType = "drum" | "harmony" | "melody";
+export type HarnessLayerType = "drum" | "bass" | "chord" | "melody";
+export type ApiLayerType = "drum" | "melody";
 
 export type StrudelLayer = {
-  type: LayerType;
+  type: HarnessLayerType;
   code: string;         // a single Strudel pattern line (no setcpm / $: prefix)
 };
 
 export type GenerateStrudelRequest = {
-  layerType: LayerType;
+  layerType: ApiLayerType;
   description: string;        // student's natural-language description, 1..500 chars
-  bpm?: number;               // composition tempo; omitted on the first layer
-  existingLayers: StrudelLayer[]; // layers already in the composition, for coherence
+  bpm: number;                // composition tempo — student-set, always provided
+  existingLayers: StrudelLayer[]; // uses HarnessLayerType; harmony expands to chord+bass
 };
 
 export type GenerateStrudelResponse = {
   code: string;         // the new layer's Strudel pattern line
   explanation: string;  // Korean explanation for the student
-  bpm: number;          // effective composition tempo (decided on the first layer)
   quota: QuotaSnapshot; // remaining quota after this call
 };
 

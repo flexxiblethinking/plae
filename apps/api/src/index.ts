@@ -26,12 +26,11 @@ import { kstDayStartMs } from "./lib/time";
 
 const PROMPT_MIN = 1;
 const PROMPT_MAX = 500;
-const STRUDEL_LAYER_TYPES: readonly string[] = [
-  "drum",
-  "bass",
-  "chord",
-  "melody",
-];
+// Harmony is generated deterministically on the client — the harness
+// route handles only drum & melody.
+const STRUDEL_LAYER_TYPES: readonly string[] = ["drum", "melody"];
+const BPM_MIN = 60;
+const BPM_MAX = 160;
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -84,7 +83,7 @@ app.post(
     const req = body as Partial<GenerateStrudelRequest>;
     const layerType = req?.layerType;
     const description = req?.description;
-    const bpm = typeof req?.bpm === "number" ? req.bpm : undefined;
+    const bpm = req?.bpm;
     const existingLayers = Array.isArray(req?.existingLayers)
       ? req.existingLayers
       : [];
@@ -95,6 +94,17 @@ app.post(
         error: {
           code: "invalid_input",
           message: `layerType must be one of ${STRUDEL_LAYER_TYPES.join(", ")}`,
+        },
+      };
+      return c.json(err, 400);
+    }
+
+    if (typeof bpm !== "number" || bpm < BPM_MIN || bpm > BPM_MAX) {
+      const err: ApiResponse<never> = {
+        ok: false,
+        error: {
+          code: "invalid_input",
+          message: `bpm must be a number between ${BPM_MIN} and ${BPM_MAX}`,
         },
       };
       return c.json(err, 400);
@@ -168,7 +178,6 @@ app.post(
         data: {
           code: result.code,
           explanation: result.explanation,
-          bpm: result.bpm,
           quota: {
             limit: quota.limit,
             used: quota.used + 1,
