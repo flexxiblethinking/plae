@@ -13,8 +13,9 @@ type ChordInfo = {
   roman: string; // 진행 표기용 로마숫자, 예: "I"
 };
 
-// 7음계 다이어토닉 3화음 — 모두 흰 건반(조표 없음). 화음은 3~4옥타브,
-// 베이스는 2옥타브. A단조는 C장조의 나란한조라 음 구성이 그대로 돈다.
+// 7음계 다이어토닉 3화음. 화음은 3~4옥타브, 베이스는 2옥타브.
+// A단조는 화성단음계 — 딸림화음(V)만 7음을 반음 올려(g→g#) 장3화음으로
+// 만들어 으뜸화음으로의 끌림을 살린다. 나머지 화음은 자연단음계 그대로.
 const CHORDS: Record<KeyMode, Record<ScaleDegree, ChordInfo>> = {
   major: {
     1: { chord: "c3,e3,g3", bass: "c2", roman: "I" },
@@ -30,7 +31,7 @@ const CHORDS: Record<KeyMode, Record<ScaleDegree, ChordInfo>> = {
     2: { chord: "b3,d4,f4", bass: "b2", roman: "ii°" },
     3: { chord: "c3,e3,g3", bass: "c2", roman: "III" },
     4: { chord: "d3,f3,a3", bass: "d2", roman: "iv" },
-    5: { chord: "e3,g3,b3", bass: "e2", roman: "v" },
+    5: { chord: "e3,g#3,b3", bass: "e2", roman: "V" }, // 화성단음계 딸림화음 (장3화음)
     6: { chord: "f3,a3,c4", bass: "f2", roman: "VI" },
     7: { chord: "g3,b3,d4", bass: "g2", roman: "VII" },
   },
