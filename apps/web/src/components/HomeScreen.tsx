@@ -44,8 +44,8 @@ export function HomeScreen() {
             )}
           </div>
           <div className="flex items-center gap-4">
-            <span className="hidden font-mono text-[11px] uppercase tracking-wider text-cream/40 sm:inline">
-              @{state.user.emailDomain}
+            <span className="hidden font-mono text-[11px] tracking-wider text-cream/40 sm:inline">
+              {state.email ?? `@${state.user.emailDomain}`}
             </span>
             <button
               type="button"

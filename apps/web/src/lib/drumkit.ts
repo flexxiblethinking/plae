@@ -55,14 +55,24 @@ export function resumeAudio(): void {
   if (ctx.state !== "running") void ctx.resume();
 }
 
-// 샘플 하나 재생. when은 AudioContext 타임스탬프(기본: 지금).
-function trigger(track: TrackId, when?: number): void {
+// 강박(밝은 칸) 대비 약박의 음량 — 자연스러운 셈여림을 강제한다.
+const WEAK_BEAT_GAIN = 0.7;
+
+// 샘플 하나 재생. when은 AudioContext 타임스탬프(기본: 지금),
+// gain은 음량(기본 1.0 = 강박).
+function trigger(track: TrackId, when?: number, gain = 1): void {
   const ctx = getAudioContext();
   const buf = buffers[track];
   if (!buf) return;
   const src = ctx.createBufferSource();
   src.buffer = buf;
-  src.connect(ctx.destination);
+  if (gain === 1) {
+    src.connect(ctx.destination);
+  } else {
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    src.connect(g).connect(ctx.destination);
+  }
   src.start(when ?? ctx.currentTime);
 }
 
@@ -138,8 +148,11 @@ export class DrumSequencer {
   private schedule(): void {
     const ctx = getAudioContext();
     while (this.nextStepTime < ctx.currentTime + this.scheduleAhead) {
+      // 강박(0·4·8·12 = 1·2·3·4박)은 1.0, 약박은 70%로 연주.
+      const gain = this.nextStep % 4 === 0 ? 1 : WEAK_BEAT_GAIN;
       for (const { id } of TRACKS) {
-        if (this.pattern[id][this.nextStep]) trigger(id, this.nextStepTime);
+        if (this.pattern[id][this.nextStep])
+          trigger(id, this.nextStepTime, gain);
       }
       this.drawQueue.push({ step: this.nextStep, time: this.nextStepTime });
       this.nextStepTime += this.stepDuration();

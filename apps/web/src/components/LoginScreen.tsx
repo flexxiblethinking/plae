@@ -15,7 +15,12 @@ export function LoginScreen() {
         <h1 className="mt-5 font-mono text-6xl font-bold lowercase tracking-tight text-cream">
           pl<span className="text-accent">a</span>e
         </h1>
-        <p className="mt-3 text-cream/55">자연어로 음악을 만들어 봐요</p>
+        <p className="mt-3 font-mono text-sm text-cream/55">
+          Prompt Layered Audio Engine
+        </p>
+        <p className="mt-2 inline-block rounded-full border border-signal/30 bg-signal/10 px-3 py-0.5 font-mono text-[11px] uppercase tracking-widest text-signal/70">
+          늘푸른중학교 전용
+        </p>
 
         <div className="mt-10">
           {state.status === "verifying" ? (

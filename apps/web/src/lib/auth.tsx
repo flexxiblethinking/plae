@@ -12,7 +12,18 @@ import { api } from "./api";
 type AuthState =
   | { status: "unauthenticated"; error?: string }
   | { status: "verifying" }
-  | { status: "authenticated"; idToken: string; user: MeResponse };
+  | { status: "authenticated"; idToken: string; user: MeResponse; email: string | null };
+
+function parseEmail(idToken: string): string | null {
+  try {
+    const raw = idToken.split(".")[1];
+    const padded = raw.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(padded)) as { email?: unknown };
+    return typeof payload.email === "string" ? payload.email : null;
+  } catch {
+    return null;
+  }
+}
 
 type AuthContextValue = {
   state: AuthState;
@@ -29,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: "verifying" });
     const result = await api.me(idToken);
     if (result.ok) {
-      setState({ status: "authenticated", idToken, user: result.data });
+      setState({ status: "authenticated", idToken, user: result.data, email: parseEmail(idToken) });
     } else {
       setState({
         status: "unauthenticated",

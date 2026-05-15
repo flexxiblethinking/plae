@@ -127,9 +127,9 @@ export function DrumPad() {
         <button
           type="button"
           onClick={() => setPattern(emptyPattern())}
-          className="font-mono text-[11px] font-bold uppercase tracking-wider text-cream/40 transition-colors hover:text-accent"
+          className="btn btn-dark"
         >
-          지우기
+          초기화
         </button>
       </div>
 
@@ -175,7 +175,7 @@ export function DrumPad() {
 
       <p className="font-mono text-[11px] leading-relaxed text-cream/35">
         패드를 눌러 소리를 들어보고, 아래 칸을 켜서 리듬을 만들어요. 밝은 칸이
-        박자(1·2·3·4박)예요.
+        강박이예요.
       </p>
     </div>
   );

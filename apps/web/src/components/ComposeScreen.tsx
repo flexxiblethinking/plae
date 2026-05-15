@@ -11,14 +11,14 @@ const PROMPT_MAX = 500;
 type Mode = "strudel" | "musicgen" | "drumpad";
 
 const MODE_LABEL: Record<Mode, string> = {
-  strudel: "객관 모드",
-  musicgen: "감성 모드",
   drumpad: "드럼 패드",
+  strudel: "AI 코딩 음악",
+  musicgen: "AI 생성 음악",
 };
 
 export function ComposeScreen() {
   const { state } = useAuth();
-  const [mode, setMode] = useState<Mode>("strudel");
+  const [mode, setMode] = useState<Mode>("drumpad");
   // 감성 모드(MusicGen) state — 객관 모드 상태는 StrudelComposer가 자체 보유.
   const [prompt, setPrompt] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -46,7 +46,7 @@ export function ComposeScreen() {
     <div className="animate-rise space-y-6">
       {/* 모드 토글 — 세그먼티드 */}
       <div className="flex flex-wrap gap-1.5">
-        {(["strudel", "musicgen", "drumpad"] as Mode[]).map((m) => (
+        {(["drumpad", "strudel", "musicgen"] as Mode[]).map((m) => (
           <button
             key={m}
             type="button"
